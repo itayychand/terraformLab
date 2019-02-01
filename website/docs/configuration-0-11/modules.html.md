@@ -1,5 +1,5 @@
 ---
-layout: "docs"
+layout: "oldconfig"
 page_title: "Modules - 0.11 Configuration Language"
 sidebar_current: "docs-conf-old-modules"
 description: |-

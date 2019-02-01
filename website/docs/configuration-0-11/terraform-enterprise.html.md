@@ -1,5 +1,5 @@
 ---
-layout: "docs"
+layout: "oldconfig"
 page_title: "Terraform Push - 0.11 Configuration Language"
 sidebar_current: "docs-conf-old-push"
 description: |-

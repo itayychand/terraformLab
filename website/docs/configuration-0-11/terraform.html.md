@@ -1,5 +1,5 @@
 ---
-layout: "docs"
+layout: "oldconfig"
 page_title: "Terraform Settings - 0.11 Configuration Language"
 sidebar_current: "docs-conf-old-terraform"
 description: |-

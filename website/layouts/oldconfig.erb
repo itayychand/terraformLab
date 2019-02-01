@@ -1,0 +1,110 @@
+<% wrap_layout :inner do %>
+  <% content_for :sidebar do %>
+    <h4><a href="/docs/index.html">Terraform CLI</a></h4>
+
+    <ul class="nav docs-sidenav">
+      <li<%= sidebar_current("docs-conf") %>>
+        <a class="back" href="/docs/configuration/index.html">Configuration Language</a>
+        <ul class="nav">
+
+          <li<%= sidebar_current("docs-conf-old") %>>
+            <a href="/docs/configuration-0-11/index.html">v0.11 Configuration Language</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-conf-old-load") %>>
+                <a href="/docs/configuration-0-11/load.html">Load Order and Semantics</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-syntax") %>>
+                <a href="/docs/configuration-0-11/syntax.html">Configuration Syntax</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-interpolation") %>>
+                <a href="/docs/configuration-0-11/interpolation.html">Interpolation Syntax</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-override") %>>
+                <a href="/docs/configuration-0-11/override.html">Overrides</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-resources") %>>
+                <a href="/docs/configuration-0-11/resources.html">Resources</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-data-sources") %>>
+                <a href="/docs/configuration-0-11/data-sources.html">Data Sources</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-providers") %>>
+                <a href="/docs/configuration-0-11/providers.html">Providers</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-variables") %>>
+                <a href="/docs/configuration-0-11/variables.html">Variables</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-outputs") %>>
+                <a href="/docs/configuration-0-11/outputs.html">Outputs</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-locals") %>>
+                <a href="/docs/configuration-0-11/locals.html">Local Values</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-modules") %>>
+                <a href="/docs/configuration-0-11/modules.html">Modules</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-terraform") %>>
+                <a href="/docs/configuration-0-11/terraform.html">Terraform</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-push") %>>
+                <a href="/docs/configuration-0-11/terraform-enterprise.html">Terraform Push (deprecated)</a>
+              </li>
+
+              <li<%= sidebar_current("docs-conf-old-environment-variables") %>>
+                <a href="/docs/configuration-0-11/environment-variables.html">Environment Variables</a>
+              </li>
+            </ul>
+          </li>
+
+
+        </ul>
+      </li>
+    </ul>
+
+    <h4>Other Docs</h4>
+
+    <ul class="nav docs-sidenav">
+      <li>
+        <a class="back" href="/downloads.html">Download Terraform</a>
+      </li>
+
+      <li>
+        <a class="back" href="/intro/index.html">Introduction to Terraform</a>
+      </li>
+
+      <li>
+        <a class="back" href="/docs/enterprise/index.html">Terraform Enterprise</a>
+      </li>
+
+      <li>
+        <a class="back" href="/guides/index.html">Guides and Whitepapers</a>
+      </li>
+
+      <li>
+        <a class="back" href="/docs/registry/index.html">Terraform Registry</a>
+      </li>
+
+      <li>
+        <a class="back" href="/docs/github-actions/index.html">Terraform GitHub Actions</a>
+      </li>
+
+      <li>
+        <a class="back" href="/docs/extend/index.html">Extending Terraform</a>
+      </li>
+    </ul>
+  <% end %>
+
+  <%= yield %>
+<% end %>

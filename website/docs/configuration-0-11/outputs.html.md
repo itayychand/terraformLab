@@ -1,5 +1,5 @@
 ---
-layout: "docs"
+layout: "oldconfig"
 page_title: "Output Values - 0.11 Configuration Language"
 sidebar_current: "docs-conf-old-outputs"
 description: |-
