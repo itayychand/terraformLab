@@ -6074,3 +6074,71 @@ func TestContext2Plan_requiredModuleObject(t *testing.T) {
 		})
 	}
 }
+
+func TestContext2Plan_dataDepsInModule(t *testing.T) {
+	m := testModule(t, "plan-data-dep-module")
+	p := testProvider("test")
+	p.DiffFn = testDiffFn
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		addrs.Resource{
+			Mode: addrs.DataResourceMode,
+			Type: "test_file",
+			Name: "d",
+		}.Instance(addrs.NoKey),
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"d","template":"old"}`),
+		},
+		addrs.ProviderConfig{
+			Type: "test",
+		}.Absolute(addrs.RootModuleInstance),
+	)
+
+	mod := state.EnsureModule(addrs.RootModuleInstance.Child("mod", addrs.NoKey))
+	mod.SetResourceInstanceCurrent(
+		addrs.Resource{
+			Mode: addrs.ManagedResourceMode,
+			Type: "test_instance",
+			Name: "a",
+		}.Instance(addrs.IntKey(0)),
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"a","value":"old"}`),
+		},
+		addrs.ProviderConfig{
+			Type: "test",
+		}.Absolute(addrs.RootModuleInstance),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Config: m,
+		ProviderResolver: providers.ResolverFixed(
+			map[string]providers.Factory{
+				"test": testProviderFuncFixed(p),
+			},
+		),
+		State: state,
+	})
+
+	plan, diags := ctx.Plan()
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	if len(plan.Changes.Resources) != 2 {
+		t.Fatal("expected 2 changes, got", len(plan.Changes.Resources))
+	}
+
+	// make sure we have planned a read for this data source, since it depends
+	// on a resource changing
+	for _, res := range plan.Changes.Resources {
+		if res.Addr.String() == "data.test_file.d" {
+			return
+		}
+	}
+
+	t.Fatal("no change found for data.test_file.d")
+}
