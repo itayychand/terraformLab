@@ -78,15 +78,12 @@ func (n *NodePlannableResourceInstance) evalTreeDataResource(addr addrs.AbsResou
 
 					// Check and see if any of our dependencies have changes.
 					changes := ctx.Changes()
-					for _, d := range n.References() {
-						ri, ok := d.Subject.(addrs.ResourceInstance)
-						if !ok {
-							continue
-						}
-						change := changes.GetResourceInstanceChange(ri.Absolute(ctx.Path()), states.CurrentGen)
-						if change != nil && change.Action != plans.NoOp {
-							depChanges = true
-							break
+					for _, d := range n.Dependencies {
+						for _, change := range changes.GetResourceChanges(d, states.CurrentGen) {
+							if change != nil && change.Action != plans.NoOp {
+								depChanges = true
+								break
+							}
 						}
 					}
 

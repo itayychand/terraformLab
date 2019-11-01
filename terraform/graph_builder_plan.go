@@ -140,6 +140,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// Connect so that the references are ready for targeting. We'll
 		// have to connect again later for providers and so on.
 		&ReferenceTransformer{},
+		&AttachDependenciesTransformer{},
 
 		// Add the node to fix the state count boundaries
 		&CountBoundaryTransformer{

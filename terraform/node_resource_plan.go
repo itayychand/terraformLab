@@ -3,6 +3,7 @@ package terraform
 import (
 	"log"
 
+	"github.com/hashicorp/terraform/addrs"
 	"github.com/hashicorp/terraform/dag"
 	"github.com/hashicorp/terraform/tfdiags"
 )
@@ -16,6 +17,9 @@ type NodePlannableResource struct {
 	// during graph construction, if dependencies require us to force this
 	// on regardless of what the configuration says.
 	ForceCreateBeforeDestroy *bool
+
+	// Plan dependencies to check for data source planning
+	Dependencies []addrs.AbsResource
 }
 
 var (
@@ -45,6 +49,10 @@ func (n *NodePlannableResource) EvalTree() EvalNode {
 		Config:       config,
 		ProviderAddr: n.ResolvedProvider,
 	}
+}
+
+func (n *NodePlannableResource) AttachDependencies(deps []addrs.AbsResource) {
+	n.Dependencies = deps
 }
 
 // GraphNodeDestroyerCBD
@@ -98,6 +106,7 @@ func (n *NodePlannableResource) DynamicExpand(ctx EvalContext) (*Graph, error) {
 		a.ResolvedProvider = n.ResolvedProvider
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
+		a.Dependencies = n.Dependencies
 
 		return &NodePlannableResourceInstance{
 			NodeAbstractResourceInstance: a,

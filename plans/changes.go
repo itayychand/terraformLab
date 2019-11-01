@@ -54,6 +54,18 @@ func (c *Changes) ResourceInstance(addr addrs.AbsResourceInstance) *ResourceInst
 	return nil
 }
 
+func (c *Changes) ResourceInstances(addr addrs.AbsResource) []*ResourceInstanceChangeSrc {
+	addrStr := addr.String()
+	var result []*ResourceInstanceChangeSrc
+	for _, rc := range c.Resources {
+		if rc.Addr.ContainingResource().String() == addrStr && rc.DeposedKey == states.NotDeposed {
+			result = append(result, rc)
+		}
+	}
+
+	return result
+}
+
 // ResourceInstanceDeposed returns the plan change of a deposed object of
 // the resource instance of the given address, if any. Returns nil if no change
 // is planned.
