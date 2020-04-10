@@ -93,7 +93,7 @@ func (t *DestroyEdgeTransformer) Transform(g *Graph) error {
 		return nil
 	}
 
-	// Connect destroy despendencies as stored in the state
+	// Connect destroy dependencies as stored in the state
 	for _, ds := range destroyers {
 		for _, des := range ds {
 			ri, ok := des.(GraphNodeResourceInstance)
@@ -101,8 +101,19 @@ func (t *DestroyEdgeTransformer) Transform(g *Graph) error {
 				continue
 			}
 
+			// get the module within which this instance resides
+			mod := ri.ResourceInstanceAddr().Module
+
 			for _, resAddr := range ri.StateDependencies() {
 				for _, desDep := range destroyersByResource[resAddr.String()] {
+					// if the target addrs are in the same module, they must also
+					// be in the same module instance, so we can skip resources
+					// from other modules instances
+					desMod := desDep.DestroyAddr().Module
+					if mod.Module().Equal(desMod.Module()) && !mod.Equal(desMod) {
+						continue
+					}
+
 					log.Printf("[TRACE] DestroyEdgeTransformer: %s has stored dependency of %s\n", dag.VertexName(desDep), dag.VertexName(des))
 					g.Connect(dag.BasicEdge(desDep, des))
 
@@ -118,8 +129,19 @@ func (t *DestroyEdgeTransformer) Transform(g *Graph) error {
 			continue
 		}
 
+		// get the module within which this instance resides
+		mod := ri.ResourceInstanceAddr().Module
+
 		for _, resAddr := range ri.StateDependencies() {
 			for _, desDep := range destroyersByResource[resAddr.String()] {
+				// if the target addrs are in the same module, they must also
+				// be in the same module instance, so we can skip resources
+				// from other modules instances
+				desMod := desDep.DestroyAddr().Module
+				if mod.Module().Equal(desMod.Module()) && !mod.Equal(desMod) {
+					continue
+				}
+
 				log.Printf("[TRACE] DestroyEdgeTransformer: %s has stored dependency of %s\n", dag.VertexName(c), dag.VertexName(desDep))
 				g.Connect(dag.BasicEdge(c, desDep))
 
