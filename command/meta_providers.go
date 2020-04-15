@@ -1,11 +1,16 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 
@@ -190,6 +195,94 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 	}
 }
 
+type reattachConfig struct {
+	protocol     plugin.Protocol
+	addr         net.Addr
+	pid          int
+	protoVersion int
+}
+
+func (r reattachConfig) Set() bool {
+	if r.protocol == "" {
+		return false
+	}
+	if r.addr == nil {
+		return false
+	}
+	if r.addr.Network() == "" {
+		return false
+	}
+	if r.addr.String() == "" {
+		return false
+	}
+	if r.pid == 0 {
+		return false
+	}
+	if r.protoVersion == 0 {
+		return false
+	}
+	return true
+}
+
+// parse the reattach config info we need from an environment variable value
+// the value should have the following format:
+//
+// hashicorp/random=5|unix|/tmp/plugin451906754|grpc|1234,hashicorp/local=5|unix|tmp/plugin451906755|grpc|1234
+func parseReattachFromEnv(env string) (map[string]reattachConfig, error) {
+	resp := map[string]reattachConfig{}
+	if env == "" {
+		return resp, nil
+	}
+	providerConfigs := strings.Split(env, ",")
+	for _, conf := range providerConfigs {
+		kv := strings.SplitN(conf, "=", 2)
+		if len(kv) < 2 {
+			return nil, errors.New("invalid reattach config format")
+		}
+		provider := kv[0]
+		pieces := strings.Split(kv[1], "|")
+		if len(pieces) < 5 {
+			return nil, fmt.Errorf("invalid reattach config format for %q", kv[0])
+		}
+		protoStr := pieces[0]
+		netType := pieces[1]
+		netAddr := pieces[2]
+		rpcType := pieces[3]
+		pidStr := pieces[4]
+		var addr net.Addr
+		var err error
+		switch netType {
+		case "unix":
+			addr, err = net.ResolveUnixAddr("unix", netAddr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid unix socket path for %q", provider)
+			}
+		case "tcp":
+			addr, err = net.ResolveTCPAddr("tcp", netAddr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid TCP address for %q", provider)
+			}
+		default:
+			return nil, fmt.Errorf("unknown address type %q for %q", netType, provider)
+		}
+		pid, err := strconv.Atoi(pidStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid PID for %q", provider)
+		}
+		protoVersion, err := strconv.Atoi(protoStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid protocol version %q for %q", protoStr, provider)
+		}
+		resp[kv[0]] = reattachConfig{
+			protocol:     plugin.Protocol(rpcType),
+			addr:         addr,
+			pid:          pid,
+			protoVersion: protoVersion,
+		}
+	}
+	return resp, nil
+}
+
 // providerFactory produces a provider factory that runs up the executable
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
@@ -201,15 +294,56 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			Output: os.Stderr,
 		})
 
+		logger.Trace("starting plugin", "provider", meta.Provider.ForDisplay())
+
+		reattachConfigs, err := parseReattachFromEnv(os.Getenv("TF_PROVIDER_REATTACH"))
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Trace("got reattach config", "config", spew.Sdump(reattachConfigs))
+
 		config := &plugin.ClientConfig{
-			Cmd:              exec.Command(meta.ExecutableFile),
 			HandshakeConfig:  tfplugin.Handshake,
-			VersionedPlugins: tfplugin.VersionedPlugins,
-			Managed:          true,
 			Logger:           logger,
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
-			AutoMTLS:         enableProviderAutoMTLS,
 		}
+
+		// if we have reattach information for this provider, we want
+		// to connect to an already running process, instead of
+		// starting a new one.
+		if reattach, ok := reattachConfigs[meta.Provider.ForDisplay()]; ok && reattach.Set() {
+			config.Reattach = &plugin.ReattachConfig{
+				Protocol: reattach.protocol,
+				Addr:     reattach.addr,
+				Pid:      reattach.pid,
+			}
+			if plugins, ok := tfplugin.VersionedPlugins[reattach.protoVersion]; !ok {
+				return nil, fmt.Errorf("unknown protocol version %d in reattach config for %q", reattach.protoVersion, meta.Provider.ForDisplay())
+			} else {
+				config.Plugins = plugins
+			}
+		} else {
+			config.Cmd = exec.Command(meta.ExecutableFile)
+			// we can only use AutoMTLS if we're not using reattach
+			config.AutoMTLS = enableProviderAutoMTLS
+			// VersionedPlugins only work when the go-plugin
+			// handshake is initiated by terraform; if we start a
+			// process outside of terraform, we need it to not be
+			// set and to use the plugins for the protocol version
+			// passed in.
+			config.VersionedPlugins = tfplugin.VersionedPlugins
+		}
+
+		// when shutting down providers by stopping the server, we
+		// shouldn't consider the client "managed", as go-plugin will
+		// then try to kill the process at the end of Terraform's run.
+		// So we only set config.Managed to true if the soft stop
+		// environment variable isn't set.
+		if os.Getenv("TF_PROVIDER_SOFT_STOP") == "" {
+			config.Managed = true
+		}
+
 		client := plugin.NewClient(config)
 		rpcClient, err := client.Client()
 		if err != nil {
