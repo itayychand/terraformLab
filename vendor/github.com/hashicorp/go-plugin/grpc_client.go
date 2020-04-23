@@ -101,7 +101,7 @@ func (c *GRPCClient) Close() error {
 func (c *GRPCClient) Dispense(name string) (interface{}, error) {
 	raw, ok := c.Plugins[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown plugin type: %s. Want one of %v", name, c.Plugins)
+		return nil, fmt.Errorf("unknown plugin type: %s", name)
 	}
 
 	p, ok := raw.(GRPCPlugin)
